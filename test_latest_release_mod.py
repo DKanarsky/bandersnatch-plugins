@@ -1,0 +1,141 @@
+import os
+from collections import defaultdict
+from tempfile import TemporaryDirectory
+import unittest
+from unittest import TestCase
+
+import bandersnatch.filter
+from bandersnatch.configuration import BandersnatchConfig
+from bandersnatch.master import Master
+from bandersnatch.mirror import Mirror
+from bandersnatch.package import Package
+
+
+def _mock_config(contents, filename="test.conf"):
+    """
+    Creates a config file with contents and loads them into a
+    BandersnatchConfig instance.
+    """
+    with open(filename, "w") as fd:
+        fd.write(contents)
+
+    instance = BandersnatchConfig()
+    instance.config_file = filename
+    instance.load_configuration()
+    return instance
+
+
+class BasePluginTestCase(TestCase):
+
+    tempdir = None
+    cwd = None
+
+    def setUp(self):
+        self.cwd = os.getcwd()
+        self.tempdir = TemporaryDirectory()
+        bandersnatch.filter.loaded_filter_plugins = defaultdict(list)
+        os.chdir(self.tempdir.name)
+
+    def tearDown(self):
+        if self.tempdir:
+            os.chdir(self.cwd)
+            self.tempdir.cleanup()
+            self.tempdir = None
+
+
+class TestLatestReleaseFilter(BasePluginTestCase):
+
+    config_contents = """\
+[blacklist]
+plugins =
+    filter_release
+
+[filter_release]
+keep = 2
+releases = 
+  foo == 1.1.0
+"""
+
+    def test_latest_releases_keep_latest(self):
+        _mock_config(self.config_contents)
+
+        bandersnatch.filter.filter_release_plugins()
+
+        mirror = Mirror(".", Master(url="https://foo.bar.com"))
+        pkg = Package("foo", 1, mirror)
+        pkg.info = {"name": "foo", "version": "2.0.0"}
+        pkg.releases = {
+            "1.0.0": {},
+            "1.1.0": {},
+            "1.1.1": {},
+            "1.1.2": {},
+            "1.1.3": {},
+            "2.0.0": {},
+        }
+
+        pkg._filter_releases()
+
+        assert pkg.releases == {"1.1.0": {}, "1.1.3": {}, "2.0.0": {}}
+
+    def test_latest_releases_keep_stable(self):
+        _mock_config(self.config_contents)
+
+        bandersnatch.filter.filter_release_plugins()
+
+        mirror = Mirror(".", Master(url="https://foo.bar.com"))
+        pkg = Package("foo", 1, mirror)
+        pkg.info = {"name": "foo", "version": "2.0.0"}  # stable version
+        pkg.releases = {
+            "1.0.0": {},
+            "1.1.0": {},
+            "1.1.1": {},
+            "1.1.2": {},
+            "1.1.3": {},
+            "2.0.0": {},  # <= stable version, keep it
+            "2.0.1b1": {},
+            "2.0.1b2": {},  # <= most recent, keep it
+        }
+
+        pkg._filter_releases()
+
+        assert pkg.releases == {"1.1.0": {}, "2.0.1b2": {}, "2.0.0": {}}
+
+
+class TestLatestReleaseFilterUninitialized(BasePluginTestCase):
+
+    config_contents = """\
+[blacklist]
+plugins =
+    filter_release
+"""
+
+    def test_latest_releases_uninitialized(self):
+        _mock_config(self.config_contents)
+
+        bandersnatch.filter.filter_release_plugins()
+
+        mirror = Mirror(".", Master(url="https://foo.bar.com"))
+        pkg = Package("foo", 1, mirror)
+        pkg.info = {"name": "foo", "version": "2.0.0"}
+        pkg.releases = {
+            "1.0.0": {},
+            "1.1.0": {},
+            "1.1.1": {},
+            "1.1.2": {},
+            "1.1.3": {},
+            "2.0.0": {},
+        }
+
+        pkg._filter_releases()
+
+        assert pkg.releases == {
+            "1.0.0": {},
+            "1.1.0": {},
+            "1.1.1": {},
+            "1.1.2": {},
+            "1.1.3": {},
+            "2.0.0": {},
+        }
+
+if __name__ == '__main__':
+    unittest.main()
