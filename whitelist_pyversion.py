@@ -52,9 +52,7 @@ class WhitelistReleasePyVersion(FilterReleasePlugin):
     def filter(self, info, releases):
         name = info["name"]
         for version in list(releases.keys()):
-            for idx, elem in enumerate(releases[version]):
-                if not self._check_match(name, elem['python_version']):
-                    del releases[version][idx]
+            releases[version] = [f for f in releases[version] if self._check_match(name, f['python_version'])]
             if len(releases[version]) == 0:
                 del releases[version]
 
