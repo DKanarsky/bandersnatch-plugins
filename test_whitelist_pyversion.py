@@ -78,11 +78,13 @@ python_versions =
         mirror = Mirror(".", Master(url="https://foo.bar.com"))
         pkg = Package("foo", 1, mirror)
         pkg.info = {"name": "foo"}
-        pkg.releases = {"1.2.0": [{'python_version': 'foo'}], "1.2.1": [{'python_version': 'foo2'}]}
+        pkg.releases = {"1.2.0": [{'python_version': 'foo'}, {'python_version': 'foo2'}], "1.2.1": [{'python_version': 'foo2'}]}
 
         pkg._filter_releases()
 
         self.assertListEqual(list(pkg.releases.keys()), ["1.2.0"])
+        self.assertEqual(len(pkg.releases["1.2.0"]), 1)
+        self.assertEqual(pkg.releases["1.2.0"][0], {'python_version': 'foo'})
 
 
 if __name__ == '__main__':
