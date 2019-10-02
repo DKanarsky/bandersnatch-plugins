@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='bandersnatch_filters',
-    version='0.1.0',
+    version='0.1.1',
     entry_points={
         'bandersnatch_filter_plugins.v2.release': [
             'whitelist_pyversion = whitelist_pyversion:WhitelistReleasePyVersion',
@@ -10,4 +10,5 @@ setup(
         ],
     },
     py_modules=['whitelist_pyversion', 'filter_release'],
+    install_requires=['bandersnatch'],
 )
