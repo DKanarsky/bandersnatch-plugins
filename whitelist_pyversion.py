@@ -78,7 +78,7 @@ class WhitelistReleasePyVersion(FilterReleasePlugin):
             return False
 
         for whitelisted_version in self.whitelist_pyversions: 
-            if python_version == whitelisted_version:
+            if whitelisted_version in python_version:
                 logger.debug(
                     f"MATCH: Release {name} with python_version = {python_version} matches specifier "
                     f"{whitelisted_version}"
